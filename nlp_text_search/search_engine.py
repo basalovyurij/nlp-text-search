@@ -1,10 +1,11 @@
-from .custom_vp_tree import *
 from deeppavlov import *
-from .dists import *
 import json
 import os
 import pickle
-from typing import Any, List, Tuple, Type
+from typing import Any, Type
+
+from .custom_vp_tree import *
+from .dists import *
 from .vp_tree import VP_tree
 
 
@@ -40,11 +41,12 @@ class BruteForceSearchEngine(AbstractSearchEngine):
         return res
 
 
-class VPTree2SearchEngine(AbstractSearchEngine):
+class VPTreeSearchEngine(AbstractSearchEngine):
     def fit(self, points: List) -> None:
-        self.tree = VP_tree(points, self.dist.dist)
+        self.tree = VP_tree(self.dist.dist)
+        self.tree.fit(points)
 
-    def search(self, point, n_neighbors) -> List[Tuple[Any, float]]:
+    def search(self, point, n_neighbors=10) -> List[Tuple[Any, float]]:
         res = []
         i = 0
         for r in self.tree.find(point):
@@ -56,12 +58,14 @@ class VPTree2SearchEngine(AbstractSearchEngine):
         return res
 
 
-class CustomVPTreeSearchEngine(VPTree2SearchEngine):
-    def __init__(self, model_settings: dict, doc2vec: Doc2Vec, dist_class: Type[Dist2]):
+class SaveableVPTreeSearchEngine(VPTreeSearchEngine):
+    def __init__(self, model_settings: dict, doc2vec: Doc2Vec,
+                 dist_class: Type[LinearizedDist] = Dist, linearization_settings: dict = {}):
         self.model_settings = model_settings
-        self.model = build_model(model_settings, download=False)
+        self.model = build_model(model_settings, download=True)
         self.doc2vec = doc2vec
-        VPTree2SearchEngine.__init__(self, dist_class(self.model, doc2vec))
+        self.dist = dist_class(self.model, self.doc2vec, linearization_settings)
+        VPTreeSearchEngine.__init__(self, self.dist)
 
     def set_tree(self, tree: CustomVPTree) -> None:
         self.tree = tree
@@ -77,7 +81,8 @@ class CustomVPTreeSearchEngine(VPTree2SearchEngine):
 
         settings = {
             'self_class': type(self).__name__,
-            'dist_class' : type(self.dist).__name__
+            'dist_class': type(self.dist).__name__,
+            'linearization_settings': self.dist.get_linearization_settings()
         }
 
         with open(os.path.join(path, 'settings.json'), 'w') as f:
@@ -104,8 +109,9 @@ class CustomVPTreeSearchEngine(VPTree2SearchEngine):
 
         self_class = globals()[settings['self_class']]
         dist_class = globals()[settings['dist_class']]
+        linearization_settings = settings['linearization_settings']
 
-        res: CustomVPTreeSearchEngine = self_class(model_settings, doc2vec, dist_class)
+        res: SaveableVPTreeSearchEngine = self_class(model_settings, doc2vec, dist_class, linearization_settings)
 
         with open(os.path.join(path, 'tree.model'), 'rb') as f:
             tree: CustomVPTree = pickle.load(f)

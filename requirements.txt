@@ -1,0 +1,8 @@
+deeppavlov
+gensim
+fasttext
+lru-dict
+methodtools
+nltk
+numpy
+tensorflow

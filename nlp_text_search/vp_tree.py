@@ -1,9 +1,14 @@
-# http://www.logarithmic.net/pfh/blog/01164790008
+# Based on http://www.logarithmic.net/pfh/blog/01164790008
 import heapq
-#import random
 
 
 class _Node:
+    def __init__(self):
+        self.lower_bounds = []
+        self.upper_bounds = []
+        self.children = []
+        self.vantage = None
+
     def minimum_distance(self, distances):
         minimum = 0.0
         for i in range(len(distances)):
@@ -29,50 +34,8 @@ class _Node:
         return len(self.children) > len(other.children)
 
 
-def _make_node(items, distance, max_children):
-    if not items:
-        return None
-
-    node = _Node()
-
-    node.lower_bounds = []
-    node.upper_bounds = []
-    for i in range(len(items[0][1])):
-        distance_list = [item[1][i] for item in items]
-        node.lower_bounds.append(min(distance_list))
-        node.upper_bounds.append(max(distance_list))
-
-    node.vantage = items[0][0]
-    items = items[1:]
-
-    node.children = []
-
-    if not items:
-        return node
-
-    items = [(item[0], item[1] + (distance(node.vantage, item[0]),)) for item in items]
-
-    distances = {}
-    for item in items:
-        distances[item[1][-1]] = True
-    distance_list = list(distances.keys())
-    distance_list.sort()
-    n_children = min(max_children, len(distance_list))
-    split_points = [-1]
-    for i in range(n_children):
-        split_points.append(distance_list[(i + 1) * (len(distance_list) - 1) // n_children])
-
-    for i in range(n_children):
-        child_items = [item for item in items if split_points[i] < item[1][-1] <= split_points[i + 1]]
-        child = _make_node(child_items, distance, max_children)
-        if child:
-            node.children.append(child)
-
-    return node
-
-
 class VP_tree:
-    def __init__(self, items, distance, max_children=2):
+    def __init__(self, distance, max_children=2):
         """ items        : list of items to make tree out of
             distance     : function that returns the distance between two items
             max_children : maximum number of children for each node
@@ -82,10 +45,55 @@ class VP_tree:
         """
 
         self.distance = distance
+        self.max_children = max_children
 
-        items = [(item, ()) for item in items]
-        #random.shuffle(items)
-        self.root = _make_node(items, distance, max_children)
+    def fit(self, points) -> None:
+        self.root = self._make_node([(item, ()) for item in points])
+
+    def _make_node(self, items):
+        if not items:
+            return None
+
+        node = _Node()
+        for i in range(len(items[0][1])):
+            distance_list = [item[1][i] for item in items]
+            node.lower_bounds.append(min(distance_list))
+            node.upper_bounds.append(max(distance_list))
+
+        item = items.pop(self._get_middle_point_index(items))
+        node.vantage = item[0]
+
+        if not items:
+            return node
+
+        items = self._fill_items(node, items)
+
+        distances = {}
+        for item in items:
+            distances[item[1][-1]] = True
+        distance_list = list(distances.keys())
+        distance_list.sort()
+        n_children = self._get_n_children(distance_list)
+        split_points = [-1]
+        for i in range(n_children):
+            split_points.append(distance_list[(i + 1) * (len(distance_list) - 1) // n_children])
+
+        for i in range(n_children):
+            child_items = [item for item in items if split_points[i] < item[1][-1] <= split_points[i + 1]]
+            child = self._make_node(child_items)
+            if child:
+                node.children.append(child)
+
+        return node
+
+    def _fill_items(self, node, items):
+        return [(item[0], item[1] + (self.distance(node.vantage, item[0]),)) for item in items]
+
+    def _get_n_children(self, distance_list):
+        return min(self.max_children, len(distance_list))
+
+    def _get_middle_point_index(self, items):
+        return 0
 
     def find(self, item):
         """ Return iterator yielding items in tree in order of distance from supplied item.
