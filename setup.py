@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="nlp-text-search",
-    version="0.2",
+    version="0.3",
     author="Yurij Basalov",
     author_email="basalov_yurij@mail.ru",
     description="A small example package",
