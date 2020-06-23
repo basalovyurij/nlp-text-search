@@ -30,7 +30,8 @@ class SimpleDataReader(DatasetReader):
             return json.load(f)
         
         
-def create_settings(paraphrases: List[Tuple[Tuple[str, str], int]], name: str, train_size=0.8, fasttext_embed_path=None,
+def create_settings(paraphrases: List[Tuple[Tuple[str, str], int]], name: str, train_size=0.8,
+                    fasttext_embed_path=None, root_path='~/.deeppavlov',
                     max_sequence_length=30, nn_class_name='mpm_nn', hidden_dim=200, aggregation_dim=200):
 
     downloads = []
@@ -135,7 +136,7 @@ def create_settings(paraphrases: List[Tuple[Tuple[str, str], int]], name: str, t
         },
         'metadata': {
             'variables': {
-                'ROOT_PATH': '~/.deeppavlov',
+                'ROOT_PATH': root_path,
                 'DOWNLOADS_PATH': '{ROOT_PATH}/downloads',
                 'MODELS_PATH': '{ROOT_PATH}/models'
             },
