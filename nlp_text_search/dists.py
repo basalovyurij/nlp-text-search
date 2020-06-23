@@ -32,8 +32,8 @@ class LinearizedDist(Dist):
         self.doc2vec = doc2vec
         self.scale_edge = linearization_settings.get('scale_edge', 0.5)
         self.scale_coef = linearization_settings.get('scale_coef', 0.5)
-        self.doc2vec_weight = linearization_settings.get('scale_coef', 0.1)
-        self.model_weight = linearization_settings.get('scale_coef', 1)
+        self.doc2vec_weight = linearization_settings.get('doc2vec_weight', 0.1)
+        self.model_weight = linearization_settings.get('model_weight', 1)
         self.cache = LRU(1000000)
 
     def get_linearization_settings(self):
