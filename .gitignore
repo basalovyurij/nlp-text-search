@@ -3,3 +3,4 @@ __pycache__
 nlp_text_search.egg-info
 dist
 se
+*.pyc
