@@ -59,7 +59,6 @@ class LinearizedDist(Dist):
         d = self.doc2vec_weight * sc + self.model_weight * (2 - (ds1 + ds2))
         # normalizing
         d = d / (self.doc2vec_weight + 2 * self.model_weight)
-        #return d
         # linearizing distribution
         if d < self.scale_edge:
             return d * self.scale_coef / self.scale_edge

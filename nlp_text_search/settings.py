@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Tuple
 @register('simple_reader')
 class SimpleDataReader(DatasetReader):
     def save(self, data: List[Tuple[Tuple[str, str], int]], data_path: str, train_size: float):
-        data_path = os.path.abspath(data_path)
+        data_path = os.path.abspath(os.path.expanduser(data_path))
         if not os.path.isdir(os.path.dirname(data_path)):
             os.makedirs(os.path.dirname(data_path))
 
@@ -36,9 +36,9 @@ def create_settings(paraphrases: List[Tuple[Tuple[str, str], int]], name: str, t
 
     downloads = []
     if fasttext_embed_path is None:
-        fasttext_embed_path = '{DOWNLOADS_PATH}/embeddings/ft_native_300_ru_wiki_lenta_lower_case.bin'
+        fasttext_embed_path = '{DOWNLOADS_PATH}/embeddings/lenta_lower_100.bin'
         downloads.append({
-            'url': 'http://files.deeppavlov.ai/embeddings/ft_native_300_ru_wiki_lenta_lower_case/ft_native_300_ru_wiki_lenta_lower_case.bin',
+            'url': 'http://files.deeppavlov.ai/embeddings/lenta_lower_100.bin',
             'subdir': '{DOWNLOADS_PATH}/embeddings'
         })
 

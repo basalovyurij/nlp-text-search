@@ -1,6 +1,7 @@
+import deeppavlov
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.utils import simple_preprocess
-from nlp_text_search import create_settings, LinearizedDist, SaveableVPTreeSearchEngine
+from nlp_text_search import create_settings, LinearizedDist, DefaultSearchEngine
 
 paraphrases = [
     (('красная ручка', 'синяя ручка'), 1),
@@ -21,14 +22,12 @@ paraphrases = [
 all_texts = list(set([t[0][0] for t in paraphrases] + [t[0][1] for t in paraphrases]))
 
 settings = create_settings(paraphrases, 'test')
-doc2vec = Doc2Vec([TaggedDocument(simple_preprocess(t), [i]) for i, t in enumerate(all_texts)], min_count=1)
+deeppavlov.train_model(settings)
+doc2vec = Doc2Vec([TaggedDocument(simple_preprocess(t), [i]) for i, t in enumerate(all_texts)],
+                  min_count=1, workers=1, negative=0, dm=0, hs=1)
 
-se = SaveableVPTreeSearchEngine(settings, doc2vec, LinearizedDist)
-se.fit(all_texts)
-print(se.search('красная ручка', 3))
+se = DefaultSearchEngine(settings, doc2vec, LinearizedDist, points=all_texts)
+print(se.search('красная ручка', 5))
 
-# se.save('./se')
-# se = SaveableVPTreeSearchEngine.load('./se')
-
-#se = SaveableVPTreeSearchEngine(deeppavlov.configs.ranking.paraphrase_ident_paraphraser_pretrain, doc2vec, Dist6)
-#se.fit([i['name'] for i in train])
+se2 = DefaultSearchEngine.load('./se')
+print(se2.search('красная ручка', 5))

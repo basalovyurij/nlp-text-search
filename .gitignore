@@ -1,2 +1,5 @@
 .idea
 __pycache__
+nlp_text_search.egg-info
+dist
+se

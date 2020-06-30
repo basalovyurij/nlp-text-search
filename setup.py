@@ -1,3 +1,4 @@
+from nlp_text_search._version import __version__
 from pkg_resources import parse_requirements
 from setuptools import setup, find_packages
 
@@ -6,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="nlp-text-search",
-    version="0.5.1",
+    version=__version__,
     author="Yurij Basalov",
     author_email="basalov_yurij@mail.ru",
     description="Fulltext-like search using NLP concept",
