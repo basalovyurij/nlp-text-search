@@ -8,6 +8,10 @@ from typing import Any, List, Tuple, Union
 from ..dists import Dist
 
 
+def swap(arr, i, j):
+    arr[i], arr[j] = arr[j], arr[i]
+
+
 class ThresholdSelectionStrategy(object):
     """
     A strategy for choosing a distance threshold for vp-tree nodes. The main feature of vp-trees is that they partition
@@ -43,10 +47,13 @@ class MedianDistanceThresholdSelectionStrategy(ThresholdSelectionStrategy):
         :param dist: the function to be used to calculate distances between points
         :return: the median distance from the origin to the given list of points
         """
+        dists = dist.batch_dist([(origin, point) for point in points])
+
         left = 0
         right = len(points) - 1
         median_index = len(points) // 2
-        dists = dist.batch_dist([(origin, point) for point in points])
+        if dists[median_index] == max(dists):
+            median_index += 1
 
         # The strategy here is to use quickselect (https://en.wikipedia.org/wiki/Quickselect) to recursively partition
         # the parts of a list on one side of a pivot, working our way toward the center of the list.
@@ -55,17 +62,20 @@ class MedianDistanceThresholdSelectionStrategy(ThresholdSelectionStrategy):
             pivot_distance = dists[pivot_index]
 
             # Temporarily move the pivot point all the way out to the end of this section of the list
-            points[pivot_index], points[right] = points[right], points[pivot_index]
+            swap(points, pivot_index, right)
+            swap(dists, pivot_index, right)
 
             store_index = left
 
             for i in range(left, right):
                 if dists[i] < pivot_distance:
-                    points[store_index], points[i] = points[i], points[store_index]
+                    swap(points, store_index, i)
+                    swap(dists, store_index, i)
                     store_index += 1
 
             # ...and now bring that original pivot point back to its rightful place.
-            points[store_index], points[right] = points[right], points[store_index]
+            swap(points, store_index, right)
+            swap(dists, store_index, right)
 
             if store_index == median_index:
                 break  # Mission accomplished; we've placed the point that should rightfully be at the median index
@@ -273,7 +283,8 @@ class VPTreeNode(object):
             if dists[left] > self.threshold:
                 while right >= left:
                     if dists[right] <= self.threshold:
-                        self.points[left], self.points[right] = self.points[right], self.points[left]
+                        swap(self.points, left, right)
+                        swap(dists, left, right)
                         right -= 1
                         break
                     right -= 1

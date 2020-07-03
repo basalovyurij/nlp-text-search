@@ -5,7 +5,7 @@ from lru import LRU
 from methodtools import lru_cache
 import nltk
 import numpy as np
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 
 class Stat:
@@ -18,11 +18,11 @@ stat = Stat()
 
 class Dist(metaclass=ABCMeta):
     @abstractmethod
-    def dist(self, x: str, y: str) -> float:
+    def dist(self, x: Any, y: Any) -> float:
         pass
 
     @abstractmethod
-    def batch_dist(self, X: List[Tuple[str, str]]) -> List[float]:
+    def batch_dist(self, x: List[Tuple[Any, Any]]) -> List[float]:
         pass
 
 
@@ -91,7 +91,7 @@ class LinearizedDist(Dist):
 
         return d
 
-    def batch_dist(self, X: List[Tuple[str, str]]) -> List[float]:
+    def batch_dist(self, x: List[Tuple[str, str]]) -> List[float]:
         res = [0] * len(X)
         new_pairs = []
         Y = []
