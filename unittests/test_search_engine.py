@@ -12,10 +12,12 @@ class TestSearchEngine(TestCase):
     def test(self):
         se = self._create_se()
         res = self._round(se.search('красная ручка', 5))
+        print(res)
 
-        se.save('./se')
+        se.save('./se', copy_model=True)
         se2 = DefaultSearchEngine.load('./se')
         res2 = self._round(se2.search('красная ручка', 5))
+        print(res2)
 
         self.assertListEqual(res, res2)
 
