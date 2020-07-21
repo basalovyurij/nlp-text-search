@@ -1,6 +1,6 @@
 import math
 from nlp_text_search.dists import Dist
-from nlp_text_search.vptree.jvptree import VPTreeNode, SamplingMedianDistanceThresholdSelectionStrategy
+from nlp_text_search.vptree.jvptree import VPTreeNode, SamplingSortDistanceThresholdSelectionStrategy, RandomVantagePointSelectionStrategy
 import numpy as np
 from typing import Any, List, Tuple
 from unittest import TestCase
@@ -22,7 +22,8 @@ class TestVPTreeNodeCreation(TestCase):
     def test(self):
         for i in range(10):
             points = np.random.random((10000, 2)).tolist()
-            node = VPTreeNode(points, TestDist(), SamplingMedianDistanceThresholdSelectionStrategy(), self.node_capacity)
+            node = VPTreeNode(points, TestDist(), SamplingSortDistanceThresholdSelectionStrategy(),
+                              RandomVantagePointSelectionStrategy(), self.node_capacity)
             self._check(node)
 
     def _check(self, node: VPTreeNode):

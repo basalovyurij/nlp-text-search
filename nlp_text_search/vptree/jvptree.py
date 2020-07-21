@@ -2,14 +2,21 @@
 Based on https://github.com/jchambers/jvptree
 """
 import heapq
+import numpy as np
 import random
-from typing import Any, List, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 from ..dists import Dist
 
 
 def swap(arr, i, j):
     arr[i], arr[j] = arr[j], arr[i]
+
+
+def permutate(arr, index_permutation):
+    copy = [arr[i] for i in index_permutation]
+    for i in range(len(arr)):
+        arr[i] = copy[i]
 
 
 class ThresholdSelectionStrategy(object):
@@ -47,13 +54,10 @@ class MedianDistanceThresholdSelectionStrategy(ThresholdSelectionStrategy):
         :param dist: the function to be used to calculate distances between points
         :return: the median distance from the origin to the given list of points
         """
-        dists = dist.batch_dist([(origin, point) for point in points])
-
         left = 0
         right = len(points) - 1
         median_index = len(points) // 2
-        if dists[median_index] == max(dists):
-            median_index += 1
+        dists = dist.batch_dist([(origin, point) for point in points])
 
         # The strategy here is to use quickselect (https://en.wikipedia.org/wiki/Quickselect) to recursively partition
         # the parts of a list on one side of a pivot, working our way toward the center of the list.
@@ -63,19 +67,16 @@ class MedianDistanceThresholdSelectionStrategy(ThresholdSelectionStrategy):
 
             # Temporarily move the pivot point all the way out to the end of this section of the list
             swap(points, pivot_index, right)
-            swap(dists, pivot_index, right)
 
             store_index = left
 
             for i in range(left, right):
                 if dists[i] < pivot_distance:
                     swap(points, store_index, i)
-                    swap(dists, store_index, i)
                     store_index += 1
 
             # ...and now bring that original pivot point back to its rightful place.
             swap(points, store_index, right)
-            swap(dists, store_index, right)
 
             if store_index == median_index:
                 break  # Mission accomplished; we've placed the point that should rightfully be at the median index
@@ -84,6 +85,28 @@ class MedianDistanceThresholdSelectionStrategy(ThresholdSelectionStrategy):
             else:
                 right = store_index - 1  # We need to work on the section of the list to the left of the pivot
 
+        return dists[median_index]
+
+
+class SortDistanceThresholdSelectionStrategy(ThresholdSelectionStrategy):
+    """
+    A threshold distance selection strategy that uses the median distance from the origin as the threshold.
+    """
+    def select_threshold(self, points: List[Any], origin: Any, dist: Dist) -> float:
+        """
+        Returns the median distance of the given points from the given origin.
+        This method will partially sort the list of points in the process.
+
+        :param points: the points for which to choose a partitioning distance threshold
+        :param origin: the point from which the threshold distances should be calculated
+        :param dist: the function to be used to calculate distances between points
+        :return: the median distance from the origin to the given list of points
+        """
+        median_index = len(points) // 2
+        dists = dist.batch_dist([(origin, point) for point in points])
+        new_indexes = np.argsort(dists)
+        permutate(points, new_indexes)
+        permutate(dists, new_indexes)
         return dists[median_index]
 
 
@@ -105,16 +128,81 @@ class SamplingMedianDistanceThresholdSelectionStrategy(MedianDistanceThresholdSe
         :param dist: the function to be used to calculate distances between points
         :return: the median distance from the origin to the given list of points
         """
-        return MedianDistanceThresholdSelectionStrategy.select_threshold(self, self._get_sampled_points(points),
+        return MedianDistanceThresholdSelectionStrategy.select_threshold(self, self.get_sampled_points(points),
                                                                          origin, dist)
 
-    def _get_sampled_points(self, points: List[Any]) -> List[Any]:
+    def get_sampled_points(self, points: List[Any]) -> List[Any]:
         if len(points) <= self.number_of_samples:
             return points
 
         step = len(points) // self.number_of_samples
         sampled_points = [points[i * step] for i in range(self.number_of_samples)]
         return sampled_points
+
+
+class SamplingSortDistanceThresholdSelectionStrategy(SortDistanceThresholdSelectionStrategy):
+    """
+    A threshold distance selection strategy that uses the median distance from the origin to a subset
+    of the given list of points as the threshold.
+    """
+    def __init__(self, number_of_samples: int = 32):
+        self.number_of_samples = number_of_samples
+
+    def select_threshold(self, points: List[Any], origin: Any, dist: Dist) -> float:
+        """
+        Returns the median distance of a subset of the given points from the given origin.
+        The given list of points may be partially sorted in the process.
+
+        :param points: the points for which to choose a partitioning distance threshold
+        :param origin: the point from which the threshold distances should be calculated
+        :param dist: the function to be used to calculate distances between points
+        :return: the median distance from the origin to the given list of points
+        """
+        new_points = SamplingMedianDistanceThresholdSelectionStrategy(self.number_of_samples).get_sampled_points(points)
+        return SortDistanceThresholdSelectionStrategy.select_threshold(self, new_points, origin, dist)
+
+
+class VantagePointSelectionStrategy(object):
+    """
+    A strategy for choosing a vantage-point for vp-tree nodes. Given a list of points, a
+    VantagePointSelectionStrategy return vantage-point.
+    """
+    def select(self, points: List[Any]) -> Any:
+        """
+        Chooses a vantage-point.
+
+        :param points: the points for which to choose a vantage-point
+        :return: a vantage-point
+        """
+        raise NotImplementedError()
+
+
+class FirstVantagePointSelectionStrategy(VantagePointSelectionStrategy):
+    """
+    A strategy for choosing a first point as a vantage-point for vp-tree nodes
+    """
+    def select(self, points: List[Any]) -> Any:
+        """
+        Chooses a vantage-point. Choose first from the available points.
+
+        :param points: the points for which to choose a vantage-point
+        :return: a vantage-point
+        """
+        return points[0]
+
+
+class RandomVantagePointSelectionStrategy(VantagePointSelectionStrategy):
+    """
+    A strategy for choosing a random point as a vantage-point for vp-tree nodes.
+    """
+    def select(self, points: List[Any]) -> Any:
+        """
+        Chooses a vantage-point. Choose one at random from the available points.
+
+        :param points: the points for which to choose a vantage-point
+        :return: a vantage-point
+        """
+        return points[random.randrange(len(points))]
 
 
 class NearestNeighborCollector(object):
@@ -185,7 +273,9 @@ class VPTreeNode(object):
     that have a "closer than threshold" and "farther than threshold" child node.
     """
     def __init__(self, points: List[Any], dist: Dist,
-                 threshold_selection_strategy: ThresholdSelectionStrategy, capacity: int):
+                 threshold_selection_strategy: ThresholdSelectionStrategy,
+                 vantage_point_selection_strategy: VantagePointSelectionStrategy,
+                 capacity: int):
         """
         Constructs a new node that contains the given collection of points. If the given collection of points is larger
         than the given maximum capacity, the new node will attempts to partition the collection of points into child
@@ -194,6 +284,7 @@ class VPTreeNode(object):
         :param points: the collection of points to store in or below this node
         :param dist: the distance function to use when partitioning points
         :param threshold_selection_strategy: the threshold selection strategy to use when selecting points
+        :param vantage_point_selection_strategy: the vantage-point selection strategy to use
         :param capacity: the desired maximum capacity of this node; this node may contain more points than the given
             capacity if the given collection of points cannot be partitioned (for example, because all of the points
             are an equal distance away from the vantage point)
@@ -201,34 +292,39 @@ class VPTreeNode(object):
         self.capacity = capacity
         self.dist = dist
         self.threshold_selection_strategy = threshold_selection_strategy
+        self.vantage_point_selection_strategy = vantage_point_selection_strategy
         self.points: Union[List[Any], None] = points.copy()
         self.threshold: Union[float, None] = None
         self.closer: Union[VPTreeNode, None] = None
         self.farther: Union[VPTreeNode, None] = None
 
-        # All nodes must have a vantage point; choose one at random from the available points
-        self.vantage_point = points[random.randrange(len(points))]
+        # All nodes must have a vantage point
+        self.vantage_point = self.vantage_point_selection_strategy.select(points)
 
         self.anneal()
 
-    def set_tree_data(self, dist: Dist, threshold_selection_strategy: ThresholdSelectionStrategy,
+    def set_tree_data(self, dist: Dist,
+                      threshold_selection_strategy: ThresholdSelectionStrategy,
+                      vantage_point_selection_strategy: VantagePointSelectionStrategy,
                       capacity: int) -> None:
         """
         Recursively set tree params to node loaded from pickle
         :param dist: the VPTree distance function to use when partitioning points
         :param threshold_selection_strategy: the VPTree threshold selection strategy to use when selecting points
+        :param vantage_point_selection_strategy: the VPTree vantage-point selection strategy to use
         :param capacity: the VPTree desired maximum capacity of nodes
         :return:
         """
         self.dist = dist
         self.threshold_selection_strategy = threshold_selection_strategy
+        self.vantage_point_selection_strategy = vantage_point_selection_strategy
         self.capacity = capacity
 
         if self.closer is not None:
-            self.closer.set_tree_data(dist, threshold_selection_strategy, capacity)
+            self.closer.set_tree_data(dist, threshold_selection_strategy, vantage_point_selection_strategy, capacity)
 
         if self.farther is not None:
-            self.farther.set_tree_data(dist, threshold_selection_strategy, capacity)
+            self.farther.set_tree_data(dist, threshold_selection_strategy, vantage_point_selection_strategy, capacity)
 
     def __getstate__(self) -> Tuple[Union[List[Any], None], Union[float, None], Any,
                                     Union['VPTreeNode', None], Union['VPTreeNode', None]]:
@@ -327,9 +423,9 @@ class VPTreeNode(object):
                 self.farther = None
             else:
                 self.closer = VPTreeNode(self.points[:first_index_past_threshold], self.dist,
-                                         self.threshold_selection_strategy, self.capacity)
+                                         self.threshold_selection_strategy, self.vantage_point_selection_strategy, self.capacity)
                 self.farther = VPTreeNode(self.points[first_index_past_threshold:], self.dist,
-                                          self.threshold_selection_strategy, self.capacity)
+                                          self.threshold_selection_strategy, self.vantage_point_selection_strategy, self.capacity)
                 self.points = None
 
     def get_child_node_for_point(self, point: any) -> 'VPTreeNode':
@@ -421,8 +517,10 @@ class VPTree(object):
     Vantage point trees may be constructed with or without an initial collection of points, though specifying a
     collection of points at construction time is the most efficient approach.
     """
-    def __init__(self, dist: Dist, points: Union[List[Any], None] = None,
-                 threshold_selection_strategy: Union[ThresholdSelectionStrategy, None] = None, node_capacity: int = 32):
+    def __init__(self, dist: Dist, points: Optional[List[Any]] = None,
+                 threshold_selection_strategy: Optional[ThresholdSelectionStrategy] = None,
+                 vantage_point_selection_strategy: Optional[VantagePointSelectionStrategy] = None,
+                 node_capacity: int = 32):
         """
         Constructs a new vp-tree that uses the given distance function and threshold selection strategy to partition
         points. The tree will attempt to partition nodes that contain more than *node_capacity* points, and will
@@ -434,14 +532,20 @@ class VPTree(object):
         :param node_capacity: the largest capacity a node may have before it should be partitioned
         """
         self.dist = dist
-        if threshold_selection_strategy is None:
-            threshold_selection_strategy = SamplingMedianDistanceThresholdSelectionStrategy()
-        self.threshold_selection_strategy = threshold_selection_strategy
         self.node_capacity = node_capacity
+
+        if threshold_selection_strategy is None:
+            threshold_selection_strategy = SamplingSortDistanceThresholdSelectionStrategy()
+        self.threshold_selection_strategy = threshold_selection_strategy
+
+        if vantage_point_selection_strategy is None:
+            vantage_point_selection_strategy = RandomVantagePointSelectionStrategy()
+        self.vantage_point_selection_strategy = vantage_point_selection_strategy
 
         self.root_node: Union[VPTreeNode, None] = None
         if points:
-            self.root_node = VPTreeNode(points, self.dist, self.threshold_selection_strategy, self.node_capacity)
+            self.root_node = VPTreeNode(points, self.dist, self.threshold_selection_strategy,
+                                        self.vantage_point_selection_strategy, self.node_capacity)
 
     def set_dist(self, dist: Dist) -> None:
         """
@@ -452,23 +556,26 @@ class VPTree(object):
             raise ValueError('Dist function already set for VPTree')
         self.dist = dist
 
-        if not hasattr(self, 'threshold_selection_strategy') or not hasattr(self, 'node_capacity'):
-            raise ValueError('VPTree not initialized. Call __init__() or load pickle model before calling set_dist()')
-        self.root_node.set_tree_data(dist, self.threshold_selection_strategy, self.node_capacity)
+
+        for a in ['threshold_selection_strategy', 'vantage_point_selection_strategy', 'node_capacity']:
+            if not hasattr(self, a):
+                raise ValueError('VPTree not initialized. Call __init__() or load pickle model before calling set_dist()')
+
+        self.root_node.set_tree_data(dist, self.threshold_selection_strategy, self.vantage_point_selection_strategy, self.node_capacity)
 
     def __getstate__(self) -> Tuple[VPTreeNode, ThresholdSelectionStrategy, int]:
         """Return state values to be pickled."""
-        return self.root_node, self.threshold_selection_strategy, self.node_capacity
+        return self.root_node, self.threshold_selection_strategy, self.vantage_point_selection_strategy, self.node_capacity
 
     def __setstate__(self, state: Tuple[VPTreeNode, ThresholdSelectionStrategy, int]) -> None:
         """
         Restore state from the unpickled state values.
         :param state: state created using __getstate__ function
         """
-        self.root_node, self.threshold_selection_strategy, self.node_capacity = state
+        self.root_node, self.threshold_selection_strategy, self.vantage_point_selection_strategy, self.node_capacity = state
 
     def _check_initialized(self):
-        for a in ['dist', 'threshold_selection_strategy', 'node_capacity']:
+        for a in ['dist', 'threshold_selection_strategy', 'vantage_point_selection_strategy', 'node_capacity']:
             if not hasattr(self, a):
                 raise ValueError('VPTree not initialized. Call __init__() or load pickle model and call set_dist()')
 
@@ -514,7 +621,8 @@ class VPTree(object):
 
         if self.root_node is None:
             # We don't need to anneal here because annealing happens automatically as part of node construction
-            self.root_node = VPTreeNode(points, self.dist, self.threshold_selection_strategy, self.node_capacity)
+            self.root_node = VPTreeNode(points, self.dist, self.threshold_selection_strategy,
+                                        self.vantage_point_selection_strategy, self.node_capacity)
         else:
             for point in points:
                 self.root_node.add(point)

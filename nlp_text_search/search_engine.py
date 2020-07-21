@@ -10,7 +10,10 @@ import shutil
 from typing import Any, List, Tuple, Type
 
 from .dists import Dist, LinearizedDist
-from .vptree.jvptree import VPTree
+from .vptree.jvptree import VPTree, ThresholdSelectionStrategy, VantagePointSelectionStrategy
+from .vptree.jvptree import SamplingMedianDistanceThresholdSelectionStrategy, MedianDistanceThresholdSelectionStrategy
+from .vptree.jvptree import SamplingSortDistanceThresholdSelectionStrategy, SortDistanceThresholdSelectionStrategy
+from .vptree.jvptree import FirstVantagePointSelectionStrategy, RandomVantagePointSelectionStrategy
 from .vptree.simple_vptree import VP_tree, CustomVPTree
 from ._version import __version__
 
@@ -151,14 +154,20 @@ class SaveableVPTreeSearchEngine(VPTreeSearchEngine):
 
 class DefaultSearchEngine(AbstractSearchEngine):
     def __init__(self, model_settings: dict, doc2vec: Doc2Vec,
-                 dist_class: Type[LinearizedDist] = Dist, linearization_settings: dict = {},
-                 points: List[Any] = [], node_capacity: int = 32):
+                 dist_class: Type[LinearizedDist] = LinearizedDist, linearization_settings: dict = {},
+                 points: List[Any] = [], node_capacity: int = 32,
+                 threshold_selection_strategy: ThresholdSelectionStrategy = None,
+                 vantage_point_selection_strategy: VantagePointSelectionStrategy = None):
         self.model_settings = model_settings
         self.tree_node_capacity = node_capacity
+        self.tree_threshold_selection_strategy = threshold_selection_strategy
+        self.tree_vantage_point_selection_strategy = vantage_point_selection_strategy
         self.model = build_model(model_settings, download=True)
         self.doc2vec = doc2vec
         self.dist = dist_class(self.model, self.doc2vec, linearization_settings)
-        self.tree = VPTree(self.dist, points, node_capacity=self.tree_node_capacity)
+        self.tree = VPTree(self.dist, points, node_capacity=self.tree_node_capacity,
+                           threshold_selection_strategy=self.tree_threshold_selection_strategy,
+                           vantage_point_selection_strategy=self.tree_vantage_point_selection_strategy)
         AbstractSearchEngine.__init__(self, self.dist)
 
     def _set_tree(self, tree: VPTree) -> None:
@@ -170,16 +179,34 @@ class DefaultSearchEngine(AbstractSearchEngine):
         return res
 
     def fit(self, points: List[Any]) -> None:
-        self.tree = VPTree(self.dist, points, node_capacity=self.tree_node_capacity)
+        self.tree = VPTree(self.dist, points, node_capacity=self.tree_node_capacity,
+                           threshold_selection_strategy=self.tree_threshold_selection_strategy,
+                           vantage_point_selection_strategy=self.tree_vantage_point_selection_strategy)
+
+    def add(self, points: List[Any]) -> None:
+        self.tree.add_all(points)
+
+    def remove(self, points: List[Any]) -> None:
+        self.tree.remove_all(points)
 
     def save(self, path, copy_model: bool = False):
         if not os.path.isdir(path):
             os.makedirs(path)
 
+        tree_threshold_selection_strategy = None
+        if self.tree_threshold_selection_strategy is not None:
+            tree_threshold_selection_strategy = type(self.tree_threshold_selection_strategy).__name__
+
+        tree_vantage_point_selection_strategy = None
+        if self.tree_vantage_point_selection_strategy is not None:
+            tree_vantage_point_selection_strategy = type(self.tree_vantage_point_selection_strategy).__name__
+
         settings = {
             'self_class': type(self).__name__,
             'dist_class': type(self.dist).__name__,
             'tree_node_capacity': self.tree_node_capacity,
+            'tree_threshold_selection_strategy': tree_threshold_selection_strategy,
+            'tree_vantage_point_selection_strategy': tree_vantage_point_selection_strategy,
             'linearization_settings': self.dist.get_linearization_settings()
         }
 
@@ -225,8 +252,18 @@ class DefaultSearchEngine(AbstractSearchEngine):
         linearization_settings = settings['linearization_settings']
         tree_node_capacity = settings.get('tree_node_capacity', 32)
 
+        tree_threshold_selection_strategy = None
+        if settings.get('tree_threshold_selection_strategy', None) is not None:
+            tree_threshold_selection_strategy = globals()[settings['tree_threshold_selection_strategy']]()
+
+        tree_vantage_point_selection_strategy = None
+        if settings.get('tree_vantage_point_selection_strategy', None) is not None:
+            tree_vantage_point_selection_strategy = globals()[settings['tree_vantage_point_selection_strategy']]()
+
         res: DefaultSearchEngine = self_class(model_settings, doc2vec, dist_class, linearization_settings,
-                                              node_capacity=tree_node_capacity)
+                                              node_capacity=tree_node_capacity,
+                                              threshold_selection_strategy=tree_threshold_selection_strategy,
+                                              vantage_point_selection_strategy=tree_vantage_point_selection_strategy)
 
         with open(os.path.join(path, 'tree.model'), 'rb') as f:
             tree: VPTree = pickle.load(f)

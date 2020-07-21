@@ -8,4 +8,4 @@ tests = [
 
 for t in tests:
     t.test()
-    print(t.__class__, 'OK')
+    print(type(t).__name__, 'OK')

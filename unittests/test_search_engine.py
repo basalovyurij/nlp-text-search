@@ -2,6 +2,7 @@ import deeppavlov
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.utils import simple_preprocess
 from nlp_text_search import create_settings, LinearizedDist, DefaultSearchEngine
+from nlp_text_search.vptree.jvptree import RandomVantagePointSelectionStrategy
 from unittest import TestCase
 
 
@@ -30,7 +31,8 @@ class TestSearchEngine(TestCase):
         deeppavlov.train_model(settings)
         doc2vec = Doc2Vec([TaggedDocument(simple_preprocess(t), [i]) for i, t in enumerate(all_texts)],
                           min_count=1, workers=1, negative=0, dm=0, hs=1)
-        return DefaultSearchEngine(settings, doc2vec, LinearizedDist, points=all_texts)
+        return DefaultSearchEngine(settings, doc2vec, LinearizedDist, points=all_texts,
+                                   vantage_point_selection_strategy=RandomVantagePointSelectionStrategy())
 
     def _get_data(self):
         paraphrases = [
