@@ -228,13 +228,17 @@ class DefaultSearchEngine(AbstractSearchEngine):
             pickle.dump(self.tree, f)
 
     def _copy_model_files(self, settings: dict, path: str):
-        for k, v in settings.items():
-            if k.endswith('_path'):
-                file_name = os.path.basename(v)
-                shutil.copy2(os.path.expanduser(v), path)
-                settings[k] = os.path.join('{SE_PATH}', file_name)
-            elif isinstance(v, dict):
-                self._copy_model_files(v, path)
+        if isinstance(settings, dict):
+            for k, v in settings.items():
+                if k.endswith('_path'):
+                    file_name = os.path.basename(v)
+                    shutil.copy2(os.path.expanduser(v), path)
+                    settings[k] = os.path.join('{SE_PATH}', file_name)
+                elif isinstance(v, dict):
+                    self._copy_model_files(v, path)
+                elif isinstance(v, list):
+                    for i in v:
+                        self._copy_model_files(i, path)
 
     @staticmethod
     def load(path):
