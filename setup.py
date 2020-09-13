@@ -27,11 +27,14 @@ setup(
         'deprecation',
         'gensim',
         'fasttext',
+        'keras',
         'lru-dict',
         'methodtools',
         'nltk',
         'numpy',
+        'overrides',
         'tensorflow',
+        'theano',
         'setuptools'
     ]
 )

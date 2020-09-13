@@ -4,7 +4,8 @@ from deeppavlov.core.data.dataset_reader import DatasetReader
 import json
 import os
 import random
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+import warnings
 
 
 @register('simple_reader')
@@ -30,9 +31,34 @@ class SimpleDataReader(DatasetReader):
             return json.load(f)
         
         
-def create_settings(paraphrases: List[Tuple[Tuple[str, str], int]], name: str, train_size=0.8,
-                    fasttext_embed_path=None, root_path='~/.deeppavlov',
+def create_settings(paraphrases: Optional[List[Tuple[Tuple[str, str], int]]], name: str, train_size=0.8,
+                    fasttext_embed_path: str = None, root_path: str = '~/.deeppavlov',
+                    model_settings: Optional[Dict] = None,
                     max_sequence_length=30, nn_class_name='mpm_nn', hidden_dim=200, aggregation_dim=200):
+
+    if model_settings is None:
+        model_settings = {
+            'max_sequence_length': max_sequence_length,
+            'class_name': 'mpm_nn',
+            'hidden_dim': 200,
+            'aggregation_dim': 200
+        }
+
+    if nn_class_name != 'mpm_nn':
+        warnings.warn('Parameter nn_class_name deprecated: in 0.6.12 will be removed in 1.0')
+        model_settings['class_name'] = nn_class_name
+
+    if hidden_dim != 200:
+        warnings.warn('Parameter hidden_dim deprecated: in 0.6.12 will be removed in 1.0')
+        model_settings['hidden_dim'] = hidden_dim
+
+    if aggregation_dim != 200:
+        warnings.warn('Parameter aggregation_dim deprecated: in 0.6.12 will be removed in 1.0')
+        model_settings['aggregation_dim'] = aggregation_dim
+
+    if max_sequence_length != 30:
+        warnings.warn('Parameter max_sequence_length deprecated: in 0.6.12 will be removed in 1.0')
+        model_settings['max_sequence_length'] = max_sequence_length
 
     downloads = []
     if fasttext_embed_path is None:
@@ -79,16 +105,13 @@ def create_settings(paraphrases: List[Tuple[Tuple[str, str], int]], name: str, t
         'in': ['x_proc'],
         'in_y': ['y'],
         'out': ['y_predicted'],
-        'class_name': nn_class_name,
         'len_vocab': '#siam_vocab.len',
         'use_matrix': False,
         'attention': True,
         'emb_matrix': '#embeddings.emb_mat',
         'embedding_dim': '#siam_embedder.dim',
-        'aggregation_dim': aggregation_dim,
         'max_sequence_length': '#preproc.max_sequence_length',
         'seed': 243,
-        'hidden_dim': hidden_dim,
         'learning_rate': 1e-3,
         'triplet_loss': False,
         'batch_size': 256,
@@ -96,6 +119,8 @@ def create_settings(paraphrases: List[Tuple[Tuple[str, str], int]], name: str, t
         'load_path': '{MODELS_PATH}/%s/model_weights.h5' % name,
         'preprocess': '#preproc.__call__'
     }
+
+    nn.update(model_settings)
 
     preproc['embedder'] = {
         'id': 'siam_embedder',
