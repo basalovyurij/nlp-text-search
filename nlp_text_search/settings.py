@@ -170,6 +170,7 @@ def create_settings(paraphrases: Optional[List[Tuple[Tuple[str, str], int]]], na
         }
     }
 
-    SimpleDataReader().save(paraphrases, parse_config(res)['dataset_reader']['data_path'], train_size)
+    if paraphrases:
+        SimpleDataReader().save(paraphrases, parse_config(res)['dataset_reader']['data_path'], train_size)
 
     return res
