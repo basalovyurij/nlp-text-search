@@ -1,6 +1,3 @@
-import os
-os.environ['KERAS_BACKEND'] = 'theano'
-
 import deeppavlov
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.utils import simple_preprocess
@@ -30,7 +27,7 @@ class TestSearchEngine(TestCase):
 
     def _create_se(self) -> DefaultSearchEngine:
         paraphrases, all_texts = self._get_data()
-        settings = create_settings(paraphrases, 'test', model_settings={'class_name': 'bilstm_nn_theano'})
+        settings = create_settings(paraphrases, 'test', root_path='d:\\deeppavlov_data')
         deeppavlov.train_model(settings, download=True)
         doc2vec = Doc2Vec([TaggedDocument(simple_preprocess(t), [i]) for i, t in enumerate(all_texts)],
                           min_count=1, workers=1, negative=0, dm=0, hs=1)

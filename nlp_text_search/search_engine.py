@@ -9,7 +9,7 @@ import pickle
 import shutil
 from typing import Any, List, Optional, Tuple, Type
 
-from .dists import Dist, LinearizedDist
+from .dists import Dist, Doc2VecModel, CombineDist, InverseModel, LinearizedDist
 from .vptree.jvptree import VPTree, ThresholdSelectionStrategy, VantagePointSelectionStrategy
 from .vptree.jvptree import SamplingMedianDistanceThresholdSelectionStrategy, MedianDistanceThresholdSelectionStrategy
 from .vptree.jvptree import SamplingSortDistanceThresholdSelectionStrategy, SortDistanceThresholdSelectionStrategy
@@ -254,7 +254,10 @@ class DefaultSearchEngine(BaseSearchEngine):
         self.model_settings = model_settings
         self.model = build_model(model_settings, download=True)
         self.doc2vec = doc2vec
-        self.dist = dist_class(self.model, self.doc2vec, linearization_settings)
+        _dist = CombineDist(
+            [Doc2VecModel(self.doc2vec), InverseModel(self.model)],
+            [linearization_settings.get('doc2vec_weight', 0.1), linearization_settings.get('model_weight', 1)])
+        self.dist = dist_class(_dist, linearization_settings)
         BaseSearchEngine.__init__(self, self.dist, points, node_capacity,
                                   threshold_selection_strategy, vantage_point_selection_strategy)
 
