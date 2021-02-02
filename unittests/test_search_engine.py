@@ -23,7 +23,7 @@ class TestSearchEngine(TestCase):
         self.assertListEqual(res, res2)
 
     def _round(self, res):
-        return list([(t[0], round(t[1], 5)) for t in res])
+        return list([(t[0], round(t[1], 4)) for t in res])
 
     def _create_se(self) -> DefaultSearchEngine:
         paraphrases, all_texts = self._get_data()

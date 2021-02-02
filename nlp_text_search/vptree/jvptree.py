@@ -457,7 +457,7 @@ class VPTreeNode(object):
         else:
             self.points.append(point)
 
-    def remove(self, point: Any) -> None:
+    def remove(self, point: Any) -> bool:
         """
         Removes a point from this node (if it is a leaf node) or one of its children. If the removal of the point would
         result in an empty node, the empty node's parent will absorb and re-partition all points from all child nodes.
@@ -468,7 +468,12 @@ class VPTreeNode(object):
             # This is not a leaf node; try to remove the point from an appropriate child node
             self.get_child_node_for_point(point).remove(point)
         else:
+            if point not in self.points:
+                return False
+
             self.points.remove(point)
+
+        return True
 
     def collect_nearest_neighbors(self, collector: NearestNeighborCollector):
         if self.points is not None:
