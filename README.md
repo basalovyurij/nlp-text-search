@@ -61,3 +61,12 @@ You also can save and load search engine
 se.save('se')
 se = DefaultSearchEngine.load('se')
 ```
+
+## Plans
+
+Version 1.0 will bring major changes. 
+[Deeppavlov](https://deeppavlov.ai) models will be replaced with 
+[Sentence Transformers](https://github.com/UKPLab/sentence-transformers).
+And Vantage-Point tree will be replaced with 
+[NearPy](https://github.com/pixelogik/NearPy).
+You will have to re-index all data. New version and migration guide are cooming soon. 
