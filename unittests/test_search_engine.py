@@ -27,7 +27,7 @@ class TestSearchEngine(TestCase):
 
     def _create_se(self) -> DefaultSearchEngine:
         paraphrases, all_texts = self._get_data()
-        settings = create_settings(paraphrases, 'test', root_path='d:\\deeppavlov_data')
+        settings = create_settings(paraphrases, 'test')
         deeppavlov.train_model(settings, download=True)
         doc2vec = Doc2Vec([TaggedDocument(simple_preprocess(t), [i]) for i, t in enumerate(all_texts)],
                           min_count=1, workers=1, negative=0, dm=0, hs=1)
